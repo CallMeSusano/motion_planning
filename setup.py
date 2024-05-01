@@ -13,13 +13,16 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='miguel',
-    maintainer_email='miguel@todo.todo',
-    description='TODO: Package description',
+    maintainer='YourName',
+    maintainer_email='you@email.com',
+    description='Examples of minimal publisher/subscriber using rclpy',
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+                'talker = motion_plan.publisher_member_function:main',
+                'listener = motion_plan.subscriber_member_function:main',
+                'control = motion_plan.control:main',
         ],
     },
 )
