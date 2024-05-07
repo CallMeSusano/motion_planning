@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from tf2_ros import TransformListener, Buffer
-import time
+import math
 
 class MyNode(Node):
     def __init__(self):
@@ -10,8 +10,7 @@ class MyNode(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.start_time = None
-        self.total_distance = 0.0
+        self.initial_pose = None
 
     def get_robot_pose(self):
         try:
@@ -21,24 +20,27 @@ class MyNode(Node):
             self.get_logger().info('Could not get transform: %s' % e)
             return None
 
+    def calculate_distance(self, pose1, pose2):
+        return math.sqrt((pose2[0] - pose1[0])**2 + (pose2[1] - pose1[1])**2)
+
 def main(args=None):
     rclpy.init(args=args)
     node = MyNode()
     while rclpy.ok():
         pose = node.get_robot_pose()
         if pose is not None:
-            print('Robot pose in map frame: ', pose)
+            #print('Robot pose in map frame: ', pose)
+            if node.initial_pose is None:
+                node.initial_pose = pose
+            distance = node.calculate_distance(node.initial_pose, pose)
             cmd_vel_msg = Twist()
-            if node.total_distance < 1.0:
-                cmd_vel_msg.linear.x = 0.2
-                if node.start_time is None:
-                    node.start_time = time.time()
-                else:
-                    elapsed_time = time.time() - node.start_time
-                    node.total_distance += cmd_vel_msg.linear.x * elapsed_time
-                    node.start_time = time.time()
+            if distance < 2.0:
+                cmd_vel_msg.linear.x = 0.10
+                print('Distance: ', distance)
             else:
+                print('Distance: ', distance)
                 cmd_vel_msg.linear.x = 0.0
+                node.cmd_vel_pub.publish(cmd_vel_msg)
                 break
             node.cmd_vel_pub.publish(cmd_vel_msg)
         rclpy.spin_once(node)
