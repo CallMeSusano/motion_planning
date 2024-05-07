@@ -23,6 +23,8 @@ setup(
                 'talker = motion_plan.publisher_member_function:main',
                 'listener = motion_plan.subscriber_member_function:main',
                 'control = motion_plan.control:main',
+                'measure = motion_plan.measure:main',
+                'measure_2 = motion_plan.measure_2:main',
         ],
     },
 )

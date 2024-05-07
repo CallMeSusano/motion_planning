@@ -153,6 +153,8 @@ def main():
     control_linear_velocity = 0.0
     control_angular_velocity = 0.0
 
+    previousKey = '0'
+
     try:
         print(msg)
         while(1):
@@ -160,29 +162,34 @@ def main():
             if key == 'w':
                 target_linear_velocity =\
                     check_linear_limit_velocity(target_linear_velocity + LIN_VEL_STEP_SIZE)
-                status = status + 1
-                print_vels(target_linear_velocity, target_angular_velocity)
+                if previousKey !='w':
+                    status = status + 1
+                    print_vels(target_linear_velocity, target_angular_velocity)
             elif key == 'x':
                 target_linear_velocity =\
                     check_linear_limit_velocity(target_linear_velocity - LIN_VEL_STEP_SIZE)
-                status = status + 1
-                print_vels(target_linear_velocity, target_angular_velocity)
+                if previousKey !='x':
+                    status = status + 1
+                    print_vels(target_linear_velocity, target_angular_velocity)
             elif key == 'a':
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity + ANG_VEL_STEP_SIZE)
-                status = status + 1
-                print_vels(target_linear_velocity, target_angular_velocity)
+                if previousKey !='a':
+                    status = status + 1
+                    print_vels(target_linear_velocity, target_angular_velocity)
             elif key == 'd':
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity - ANG_VEL_STEP_SIZE)
-                status = status + 1
-                print_vels(target_linear_velocity, target_angular_velocity)
+                if previousKey !='d':
+                    status = status + 1
+                    print_vels(target_linear_velocity, target_angular_velocity)
             elif key == ' ' or key == 's':
                 target_linear_velocity = 0.0
                 control_linear_velocity = 0.0
                 target_angular_velocity = 0.0
                 control_angular_velocity = 0.0
-                print_vels(target_linear_velocity, target_angular_velocity)
+                if previousKey !='s':
+                    print_vels(target_linear_velocity, target_angular_velocity)
             else:
                 target_linear_velocity = 0.0
                 control_linear_velocity = 0.0
@@ -216,6 +223,7 @@ def main():
             twist.angular.z = control_angular_velocity
 
             pub.publish(twist)
+            previousKey = key
 
     except Exception as e:
         print(e)
