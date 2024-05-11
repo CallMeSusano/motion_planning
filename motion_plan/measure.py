@@ -3,6 +3,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from tf2_ros import TransformListener, Buffer
 import math
+import time
+import csv
 
 class MyNode(Node):
     def __init__(self):
@@ -26,24 +28,40 @@ class MyNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = MyNode()
+
+    # Initialize variables for storing data
+    data = []
+    start_time = time.time()
+
     while rclpy.ok():
         pose = node.get_robot_pose()
         if pose is not None:
-            #print('Robot pose in map frame: ', pose)
             if node.initial_pose is None:
                 node.initial_pose = pose
+                cmd_vel_msg = Twist()
+                cmd_vel_msg.linear.x = 0.15
+                node.cmd_vel_pub.publish(cmd_vel_msg)
             distance = node.calculate_distance(node.initial_pose, pose)
-            cmd_vel_msg = Twist()
-            if distance < 2.0:
-                cmd_vel_msg.linear.x = 0.10
-                print('Distance: ', distance)
+            # Get current time
+            current_time = time.time()
+            if distance < 0.5:
+                print('Distance:', distance, 'Time:', current_time)
             else:
-                print('Distance: ', distance)
+                print('Distance:', distance, 'Time:', current_time)
+                cmd_vel_msg = Twist()
                 cmd_vel_msg.linear.x = 0.0
                 node.cmd_vel_pub.publish(cmd_vel_msg)
                 break
-            node.cmd_vel_pub.publish(cmd_vel_msg)
+            # Append data to list
+            time_elapsed = current_time - start_time
+            data.append([distance, time_elapsed, distance/time_elapsed])
         rclpy.spin_once(node)
+
+    # Save data to CSV file
+    with open('data.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Distance', 'Time', 'Velocity'])
+        writer.writerows(data)
 
 if __name__ == '__main__':
     main()
