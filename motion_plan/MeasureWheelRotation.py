@@ -30,33 +30,41 @@ class MyNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = MyNode()
+    
+    for counter in range(1, 11):
+        node = MyNode()
 
-    # Initialize variables for storing data
-    data = []
+        # Initialize variables for storing data
+        data = []
 
-    while rclpy.ok():
-        distance = node.distance_traveled
-        current_time = time.time()  # Get current time in Unix time
-        cmd_vel_msg = Twist()
-        if distance < 0.5:
-            cmd_vel_msg.linear.x = 0.10
-            print('Distance:', distance, 'Time:', current_time)
-        else:
-            print('Distance:', distance, 'Time:', current_time)
-            cmd_vel_msg.linear.x = 0.0
+        while rclpy.ok():
+            distance = node.distance_traveled
+            current_time = time.time()  # Get current time in Unix time
+            cmd_vel_msg = Twist()
+            if distance < 1.0:
+                if counter % 2 != 0:
+                    cmd_vel_msg.linear.x = 0.10
+                else:
+                    cmd_vel_msg.linear.x = -0.10
+            else:
+                cmd_vel_msg.linear.x = 0.0
+                node.cmd_vel_pub.publish(cmd_vel_msg)
+                # Append data to list
+                data.append([distance, current_time, cmd_vel_msg.linear.x])
+                break
             node.cmd_vel_pub.publish(cmd_vel_msg)
-            break
-        node.cmd_vel_pub.publish(cmd_vel_msg)
-        # Append data to list
-        data.append([distance, current_time, cmd_vel_msg.linear.x])
-        rclpy.spin_once(node)
+            # Append data to list
+            data.append([distance, current_time, cmd_vel_msg.linear.x])
+            rclpy.spin_once(node)
 
-    # Save data to CSV file
-    with open('data.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['Distance', 'Time', 'Velocity'])
-        writer.writerows(data)
+        # Save data to CSV file
+        filename = f'data{counter}.csv'
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Distance', 'Time', 'Velocity'])
+            writer.writerows(data)
+
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
