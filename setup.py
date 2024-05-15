@@ -25,6 +25,7 @@ setup(
                 'control = motion_plan.control:main',
                 'measure = motion_plan.measure:main',
                 'measure_2 = motion_plan.measure_2:main',
+                'MeasureWheelRotation = motion_plan.MeasureWheelRotation:main',
         ],
     },
 )
