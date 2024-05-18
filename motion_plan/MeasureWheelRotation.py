@@ -1,70 +1,96 @@
+import os
+import select
+import sys
 import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
 import math
 import time
 import csv
 
-class MyNode(Node):
-    def __init__(self):
-        super().__init__('mynode')
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.odom_sub = self.create_subscription(Odometry, 'odom', self.odom_callback, 10)
-        self.initial_odom = None
-        self.distance_traveled = 0.0
-        self.start_time = None
+from geometry_msgs.msg import Twist
+from rclpy.qos import QoSProfile
+from nav_msgs.msg import Odometry
 
-    def odom_callback(self, msg):
-        if self.initial_odom is None:
-            self.initial_odom = msg
+if os.name == 'nt':
+    import msvcrt
+else:
+    import termios
+    import tty
 
-        if self.start_time is None:
-            # Convert header timestamp to Unix time (seconds since epoch)
-            self.start_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+BURGER_MAX_LIN_VEL = 0.15
+BURGER_MAX_ANG_VEL = 2.84
 
-        self.distance_traveled = math.sqrt(
-            (msg.pose.pose.position.x - self.initial_odom.pose.pose.position.x) ** 2 +
-            (msg.pose.pose.position.y - self.initial_odom.pose.pose.position.y) ** 2
-        )
 
-def main(args=None):
-    rclpy.init(args=args)
+def odomCallback(msg):
+    global initial_odom, start_time, distance_traveled, isDataAvailable
+
+    if initial_odom is None:
+        initial_odom = msg
+
+    if start_time is None:
+        # Convert header timestamp to Unix time (seconds since epoch)
+        start_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+    distance_traveled = math.sqrt(
+        (msg.pose.pose.position.x - initial_odom.pose.pose.position.x) ** 2 +
+        (msg.pose.pose.position.y - initial_odom.pose.pose.position.y) ** 2
+    )
+    isDataAvailable = True
+        
+def main():
+    global distance_traveled, isDataAvailable, start_time, initial_odom
     
-    for counter in range(1, 11):
-        node = MyNode()
+    for counter in range(1, 3):
 
-        # Initialize variables for storing data
-        data = []
+        initial_odom = None
+        distance_traveled = 0.0
+        start_time = None
+        isDataAvailable = False
+        if counter % 2 != 0:
+            vel = 0.10
+        else:
+            vel = -0.10
+        rclpy.init()
 
-        while rclpy.ok():
-            distance = node.distance_traveled
-            current_time = time.time()  # Get current time in Unix time
-            cmd_vel_msg = Twist()
-            if distance < 1.0:
-                if counter % 2 != 0:
-                    cmd_vel_msg.linear.x = 0.10
+        qos = QoSProfile(depth=10)
+        node = rclpy.create_node('measure')
+        velocity = node.create_publisher(Twist, 'cmd_vel', qos)
+        position = node.create_subscription(Odometry, 'odom', odomCallback, qos)
+        velValue = Twist()
+        try:
+            print("test")
+            velValue.linear.x = vel
+            isTestDone = False
+            while(True):
+                rclpy.spin_once(node, timeout_sec=0.1)  # Allow the callback to be processed
+                if not isTestDone:
+                    while(isDataAvailable):
+                        isDataAvailable = False
+                        if distance_traveled >= 0.5:
+                            velValue.linear.x = 0.0
+                            velocity.publish(velValue)
+                            isTestDone = True
+                            break
+                        velocity.publish(velValue)
+                        break
                 else:
-                    cmd_vel_msg.linear.x = -0.10
-            else:
-                cmd_vel_msg.linear.x = 0.0
-                node.cmd_vel_pub.publish(cmd_vel_msg)
-                # Append data to list
-                data.append([distance, current_time, cmd_vel_msg.linear.x])
-                break
-            node.cmd_vel_pub.publish(cmd_vel_msg)
-            # Append data to list
-            data.append([distance, current_time, cmd_vel_msg.linear.x])
-            rclpy.spin_once(node)
+                    break
+                
+        except Exception as e:
+            print(e)
 
-        # Save data to CSV file
-        filename = f'data{counter}.csv'
-        with open(filename, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['Distance', 'Time', 'Velocity'])
-            writer.writerows(data)
+        finally:
+            twist = Twist()
+            twist.linear.x = 0.0
+            twist.linear.y = 0.0
+            twist.linear.z = 0.0
 
-    rclpy.shutdown()
+            twist.angular.x = 0.0
+            twist.angular.y = 0.0
+            twist.angular.z = 0.0
+
+            velocity.publish(twist)
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
