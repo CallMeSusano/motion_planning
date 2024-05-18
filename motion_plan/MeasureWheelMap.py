@@ -1,116 +1,162 @@
+import os
+import select
+import sys
 import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
-from tf2_ros import TransformListener, Buffer
 import math
 import time
 import csv
 
-class MyNode(Node):
-    def __init__(self):
-        super().__init__('mynode')
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.odom_sub = self.create_subscription(Odometry, 'odom', self.odom_callback, 10)
-        self.initial_odom = None
-        self.distance_traveled = 0.0
-        self.start_time = None
-        self.initial_pose = None
+from geometry_msgs.msg import Twist
+from rclpy.qos import QoSProfile
+from nav_msgs.msg import Odometry
+from tf2_ros import TransformListener, Buffer
+from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 
-    def odom_callback(self, msg):
-        if self.initial_odom is None:
-            self.initial_odom = msg
+if os.name == 'nt':
+    import msvcrt
+else:
+    import termios
+    import tty
 
-        if self.start_time is None:
-            # Convert header timestamp to Unix time (seconds since epoch)
-            self.start_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+BURGER_MAX_LIN_VEL = 0.15
+BURGER_MAX_ANG_VEL = 2.84
 
-        if self.initial_pose is None:
-            self.initial_pose = self.get_robot_pose('map')  # Store the initial pose
+initial_odom = None
+distance_traveled = 0.0
+start_time = None
+isDataAvailable = False
+odom = None
 
-        self.distance_traveled = math.sqrt(
-            (msg.pose.pose.position.x - self.initial_odom.pose.pose.position.x) ** 2 +
-            (msg.pose.pose.position.y - self.initial_odom.pose.pose.position.y) ** 2
+def odomCallback(msg):
+    global initial_odom, start_time, distance_traveled, isDataAvailable, odom
+
+    if initial_odom is None:
+        initial_odom = msg
+
+    if start_time is None:
+        # Convert header timestamp to Unix time (seconds since epoch)
+        start_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+    distance_traveled = math.sqrt(
+        (msg.pose.pose.position.x - initial_odom.pose.pose.position.x) ** 2 +
+        (msg.pose.pose.position.y - initial_odom.pose.pose.position.y) ** 2
+    )
+    isDataAvailable = True
+    odom = msg
+        
+def get_robot_pose(tf_buffer, node):
+    try:
+        now = rclpy.time.Time()
+        trans = tf_buffer.lookup_transform('map', 'base_link', now)
+        return (
+            trans.transform.translation.x,
+            trans.transform.translation.y,
+            trans.transform.rotation.z,
+            trans.transform.rotation.w
         )
-    
-    def get_robot_pose(self, frame_id):
-        try:
-            trans = self.tf_buffer.lookup_transform(frame_id, 'base_link', rclpy.time.Time())
-            return (trans.transform.translation.x, trans.transform.translation.y, trans.transform.rotation.z, trans.transform.rotation.w)
-        except Exception as e:
-            self.get_logger().info(f'Could not get transform from {frame_id} to base_link: {e}')
-            return (0, 0, 0, 0)
+    except (LookupException, ConnectivityException, ExtrapolationException) as e:
+        #node.get_logger().error(f'Could not get transform from "map" to "base_link": {e}')
+        return None
 
-def main(args=None):
-    rclpy.init(args=args)
+def main():
+    global distance_traveled, isDataAvailable, start_time, initial_odom, odom
     
     for counter in range(1, 3):
-        node = MyNode()
-
-        # Initialize variables for storing data
         data = []
+        dataInfo = []
+        initial_odom = None
+        distance_traveled = 0.0
+        start_time = None
+        isDataAvailable = False
+        if counter % 2 != 0:
+            vel = 0.10
+        else:
+            vel = -0.10
+        rclpy.init()
 
-        while rclpy.ok():
-            distance = node.distance_traveled
-            current_time = time.time()  # Get current time in Unix time
-            cmd_vel_msg = Twist()
-            if distance < 1.0:
-                if counter % 2 != 0:
-                    cmd_vel_msg.linear.x = 0.10
+        qos = QoSProfile(depth=10)
+        node = rclpy.create_node('measure')
+        velocity = node.create_publisher(Twist, 'cmd_vel', qos)
+        position = node.create_subscription(Odometry, 'odom', odomCallback, qos)
+        tf_buffer = Buffer()
+        tf_listener = TransformListener(tf_buffer, node)
+        velValue = Twist()
+        try:
+            velValue.linear.x = vel
+            isTestDone = False
+            initialTime = time.time()
+            isTestStarting = True
+
+            # Wait for the transform to be available
+            initialMapPosition = None
+
+            print("Waiting for map...")
+            while initialMapPosition is None:
+                initialMapPosition = get_robot_pose(tf_buffer, node)
+                rclpy.spin_once(node, timeout_sec=0.1)
+            print("Done!")
+
+            while True:
+                rclpy.spin_once(node, timeout_sec=0.1)  # Allow the callback to be processed
+                if not isTestDone:
+                    while isDataAvailable:
+                        isDataAvailable = False
+                        if distance_traveled >= 0.5:
+                            velValue.linear.x = 0.0
+                            velocity.publish(velValue)
+                            isTestDone = True
+                            current_time = time.time() - initialTime  # Get current time in Unix time
+                            print("Position: ", abs(odom.pose.pose.position.x - initialOdomPositionX), "    ", abs(odom.pose.pose.position.y - initialOdomPositionY))
+                            finalPosition = get_robot_pose(tf_buffer, node)
+                            print("Map Position: ", abs(finalPosition[0] - initialMapPosition[0]), abs(finalPosition[1] - initialMapPosition[1]))
+                            goalOffsetX = abs(finalPosition[0] - initialMapPosition[0]) - abs(odom.pose.pose.position.x - initialOdomPositionX)
+                            goalOffsetY = abs(finalPosition[1] - initialMapPosition[1]) - abs(odom.pose.pose.position.y - initialOdomPositionY)
+                            data.append([distance_traveled, current_time, distance_traveled / current_time])
+                            dataInfo.append([distance_traveled, current_time, distance_traveled / current_time, goalOffsetX, goalOffsetY])
+                            break
+
+                        if isTestStarting:
+                            initialOdomPositionX = odom.pose.pose.position.x
+                            initialOdomPositionY = odom.pose.pose.position.y
+                            isTestStarting = False
+                    
+                        velocity.publish(velValue)
+                        current_time = time.time() - initialTime  # Get current time in Unix time
+                        data.append([distance_traveled, current_time, distance_traveled / current_time])
+                        break
                 else:
-                    cmd_vel_msg.linear.x = -0.10
-            else:
-                cmd_vel_msg.linear.x = 0.0
-                node.cmd_vel_pub.publish(cmd_vel_msg)
-                # Append data to list
-                offset_x, offset_y = calculate_offset(node.initial_pose, node.get_robot_pose('map'))
-                data.append([distance, current_time, cmd_vel_msg.linear.x, offset_x, offset_y])
-                break
-            node.cmd_vel_pub.publish(cmd_vel_msg)
-            # Append data to list
-            offset_x, offset_y = calculate_offset(node.initial_pose, node.get_robot_pose('map'))
-            if offset_x is None:
-                offset_x = 0
-            if offset_y is None:
-                offset_y = 0
-            data.append([distance, current_time, cmd_vel_msg.linear.x, offset_x, offset_y])
-            rclpy.spin_once(node)
+                    break
+                
+        except Exception as e:
+            print(e)
 
-        # Print final position
-        final_pose_map = node.get_robot_pose('map')
-        print(f'Final Position (Test {counter}) in Map Frame: {final_pose_map}')
+        finally:
+            twist = Twist()
+            twist.linear.x = 0.0
+            twist.linear.y = 0.0
+            twist.linear.z = 0.0
 
-        # Calculate distance from initial point
-        if node.initial_pose is not None and final_pose_map is not None:
-            initial_x, initial_y, _, _ = node.initial_pose
-            final_x, final_y, _, _ = final_pose_map
-            distance_x = final_x - initial_x
-            distance_y = final_y - initial_y
-            distance_from_initial_point = math.sqrt(distance_x**2 + distance_y**2)
-            print(f'Distance from Initial Point (Test {counter}): {distance_from_initial_point:.2f} meters')
-            print(f'Distance traveled in X direction (Test {counter}): {distance_x:.2f} meters')
-            print(f'Distance traveled in Y direction (Test {counter}): {distance_y:.2f} meters')
+            twist.angular.x = 0.0
+            twist.angular.y = 0.0
+            twist.angular.z = 0.0
+
+            velocity.publish(twist)
+            node.destroy_node()
+            rclpy.shutdown()
 
         # Save data to CSV file
         filename = f'data{counter}.csv'
         with open(filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['Distance', 'Time', 'Velocity', 'Offset_X', 'Offset_Y'])
+            writer.writerow(['Distance', 'Time', 'Velocity'])
             writer.writerows(data)
-
-    rclpy.shutdown()
-
-def calculate_offset(initial_pose, current_pose):
-    if initial_pose is not None and current_pose is not None:
-        initial_x, initial_y, _, _ = initial_pose
-        current_x, current_y, _, _ = current_pose
-        offset_x = current_x - initial_x
-        offset_y = current_y - initial_y
-        return offset_x, offset_y
-    else:
-        return None, None
+        
+        # Save data to CSV file
+        filename = f'data{counter}Info.csv'
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Distance', 'Time', 'Velocity', 'OffsetX', 'OffsetY'])
+            writer.writerows(dataInfo)
 
 if __name__ == '__main__':
     main()

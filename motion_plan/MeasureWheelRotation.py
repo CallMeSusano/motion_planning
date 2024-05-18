@@ -40,7 +40,7 @@ def main():
     global distance_traveled, isDataAvailable, start_time, initial_odom
     
     for counter in range(1, 3):
-
+        data = []
         initial_odom = None
         distance_traveled = 0.0
         start_time = None
@@ -60,17 +60,22 @@ def main():
             print("test")
             velValue.linear.x = vel
             isTestDone = False
+            initialTime = time.time() 
             while(True):
                 rclpy.spin_once(node, timeout_sec=0.1)  # Allow the callback to be processed
                 if not isTestDone:
                     while(isDataAvailable):
                         isDataAvailable = False
-                        if distance_traveled >= 0.5:
+                        if distance_traveled >= 2:
                             velValue.linear.x = 0.0
                             velocity.publish(velValue)
                             isTestDone = True
+                            current_time = time.time() - initialTime  # Get current time in Unix time
+                            data.append([distance_traveled, current_time, distance_traveled / current_time])
                             break
                         velocity.publish(velValue)
+                        current_time = time.time() - initialTime  # Get current time in Unix time
+                        data.append([distance_traveled, current_time, distance_traveled / current_time])
                         break
                 else:
                     break
@@ -91,6 +96,13 @@ def main():
             velocity.publish(twist)
             node.destroy_node()
             rclpy.shutdown()
+
+        # Save data to CSV file
+        filename = f'data{counter}.csv'
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Distance', 'Time', 'Velocity'])
+            writer.writerows(data)
 
 if __name__ == '__main__':
     main()
