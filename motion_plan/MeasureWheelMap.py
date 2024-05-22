@@ -61,7 +61,7 @@ def get_robot_pose(tf_buffer, node):
 def main():
     global distance_traveled, isDataAvailable, start_time, initial_odom, odom
     
-    for counter in range(1, 3):
+    for counter in range(1, 21):
         data = []
         dataInfo = []
         initial_odom = None
@@ -101,7 +101,7 @@ def main():
                 if not isTestDone:
                     while isDataAvailable:
                         isDataAvailable = False
-                        if distance_traveled >= 0.5:
+                        if distance_traveled >= 2:
                             velValue.linear.x = 0.0
                             velocity.publish(velValue)
                             isTestDone = True
