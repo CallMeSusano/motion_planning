@@ -25,8 +25,10 @@ setup(
                 'control = motion_plan.control:main',
                 'measure = motion_plan.measure:main',
                 'measure_2 = motion_plan.measure_2:main',
+                #use this ones below
                 'MeasureWheelRotation = motion_plan.MeasureWheelRotation:main',
                 'MeasureWheelMap = motion_plan.MeasureWheelMap:main',
+                'MeasureAngular = motion_plan.MeasureAngular:main',
         ],
     },
 )
