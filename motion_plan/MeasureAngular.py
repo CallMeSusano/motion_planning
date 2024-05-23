@@ -38,16 +38,6 @@ def quaternion_to_euler_angle(quat):
 
     return roll_x, pitch_y, yaw_z
 
-def normalize_angle(angle):
-    """
-    Normalize an angle to the range [-pi, pi]
-    """
-    while angle > math.pi:
-        angle -= 2.0 * math.pi
-    while angle < -math.pi:
-        angle += 2.0 * math.pi
-    return angle
-
 def odomCallback(msg):
     global initial_yaw, start_time, current_yaw, isDataAvailable
 
@@ -71,8 +61,10 @@ def main():
         isDataAvailable = False
         if counter % 2 != 0:
             ang_vel = 0.5
+            target_angle = math.radians(180)
         else:
             ang_vel = -0.5
+            target_angle = math.radians(-180)
         rclpy.init()
 
         qos = QoSProfile(depth=10)
@@ -90,12 +82,17 @@ def main():
                 if not isTestDone:
                     while(isDataAvailable):
                         isDataAvailable = False
-                        angle_rotated = normalize_angle(current_yaw - initial_yaw)
-                        print("Angle rotated: ", math.degrees(angle_rotated))
-                        if abs(angle_rotated) >= math.radians(179):  # 180 degrees in radians
+                        angle_rotated = current_yaw - initial_yaw
+                        print("Target angle:", math.degrees(target_angle), "Current yaw:", math.degrees(current_yaw), "Initial yaw:", math.degrees(initial_yaw), "Angle rotated:", math.degrees(angle_rotated))
+                        if ang_vel > 0 and angle_rotated >= target_angle:
                             velValue.angular.z = 0.0
                             velocity.publish(velValue)
                             isTestDone = True
+                        elif ang_vel < 0 and angle_rotated <= target_angle:
+                            velValue.angular.z = 0.0
+                            velocity.publish(velValue)
+                            isTestDone = True
+                        if isTestDone:
                             current_time = time.time() - initialTime  # Get current time in Unix time
                             data.append([math.degrees(angle_rotated), current_time, math.degrees(angle_rotated) / current_time])
                             break
