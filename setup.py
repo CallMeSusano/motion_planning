@@ -29,6 +29,7 @@ setup(
                 'MeasureWheelRotation = motion_plan.MeasureWheelRotation:main',
                 'MeasureWheelMap = motion_plan.MeasureWheelMap:main',
                 'MeasureAngular = motion_plan.MeasureAngular:main',
+                'MeasureRadius = motion_plan.MeasureRadius:main',
         ],
     },
 )
