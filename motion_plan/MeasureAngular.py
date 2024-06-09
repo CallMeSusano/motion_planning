@@ -53,7 +53,7 @@ def odomCallback(msg):
 def main():
     global current_yaw, isDataAvailable, start_time, initial_yaw
     
-    for counter in range(1, 3):
+    for counter in range(1, 21):
         data = []
         initial_yaw = None
         current_yaw = 0.0

@@ -6,9 +6,9 @@ import time
 def publish_movement(node, publisher, movement_type, duration, direction=None):
     twist = Twist()
     if movement_type == "rotation":
-        if direction == "left":
+        if direction == "Left":
             twist.angular.z = 0.5  # Adjust angular velocity as needed
-        elif direction == "right":
+        elif direction == "Right":
             twist.angular.z = -0.5  # Adjust angular velocity as needed
     elif movement_type == "forward":
         twist.linear.x = 0.1  # Adjust linear velocity as needed

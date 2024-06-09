@@ -39,7 +39,7 @@ def odomCallback(msg):
 def main():
     global distance_traveled, isDataAvailable, start_time, initial_odom
     
-    for counter in range(1, 3):
+    for counter in range(1, 21):
         data = []
         initial_odom = None
         distance_traveled = 0.0
