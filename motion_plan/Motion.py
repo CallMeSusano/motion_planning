@@ -37,7 +37,7 @@ def main(args=None):
         for row in reader:
             movement_type = row['type']
             duration = float(row['time'])
-            direction = row['move'] if row['move'] != 'NULL' else None
+            direction = row['direction'] if row['direction'] != 'NULL' else None
 
             publish_movement(node, publisher, movement_type, duration, direction)
 

@@ -30,7 +30,8 @@ setup(
                 'MeasureWheelMap = motion_plan.MeasureWheelMap:main',
                 'MeasureAngular = motion_plan.MeasureAngular:main',
                 'MeasureRadius = motion_plan.MeasureRadius:main',
-                'Motion = motion_plan.Motion:main'
+                'Motion = motion_plan.Motion:main',
+                'GoHome = motion_plan.GoHome:main'
         ],
     },
 )
