@@ -57,7 +57,7 @@ def main():
         position = node.create_subscription(Odometry, 'odom', odomCallback, qos)
         velValue = Twist()
         try:
-            print("test")
+            print("Measure Start")
             velValue.linear.x = vel
             isTestDone = False
             initialTime = time.time() 
@@ -70,6 +70,7 @@ def main():
                             velValue.linear.x = 0.0
                             velocity.publish(velValue)
                             isTestDone = True
+                            print("Measure Done")
                             current_time = time.time() - initialTime  # Get current time in Unix time
                             data.append([distance_traveled, current_time, distance_traveled / current_time])
                             break

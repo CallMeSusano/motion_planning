@@ -61,10 +61,10 @@ def main():
         isDataAvailable = False
         if counter % 2 != 0:
             ang_vel = 0.5
-            target_angle = math.radians(180)
+            target_angle = math.radians(179)
         else:
             ang_vel = -0.5
-            target_angle = math.radians(-180)
+            target_angle = math.radians(-179)
         rclpy.init()
 
         qos = QoSProfile(depth=10)
@@ -93,6 +93,7 @@ def main():
                             velocity.publish(velValue)
                             isTestDone = True
                         if isTestDone:
+                            print("Measure finished")
                             current_time = time.time() - initialTime  # Get current time in Unix time
                             data.append([math.degrees(angle_rotated), current_time, math.degrees(angle_rotated) / current_time])
                             break

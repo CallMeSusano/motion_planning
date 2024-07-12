@@ -31,8 +31,11 @@ def main(args=None):
     node.get_logger().info("Movement Publisher Node has been started")
 
     # Read the CSV file
+    print("Loading File....")
+    time.sleep(3)
     csv_file_path = 'path_instructions.csv'  # Replace with the actual path to your CSV file
     with open(csv_file_path, newline='') as csvfile:
+        print("Loading done")
         reader = csv.DictReader(csvfile)
         for row in reader:
             movement_type = row['type']

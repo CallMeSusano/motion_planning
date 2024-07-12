@@ -56,9 +56,6 @@ def main():
     rclpy.init()
 
     qos = QoSProfile(depth=10)
-    node = rclpy.create_node('measure_circular_motion')
-    velocity = node.create_publisher(Twist, 'cmd_vel', qos)
-    position = node.create_subscription(Odometry, 'odom', odomCallback, qos)
 
     radius = 0.5  # radius of the circle in meters
     target_angle = math.radians(90)  # 90 degrees in radians
@@ -83,6 +80,10 @@ def main():
         initialTime = time.time()
 
         try:
+            node = rclpy.create_node('measure_circular_motion')
+            velocity = node.create_publisher(Twist, 'cmd_vel', qos)    
+            position = node.create_subscription(Odometry, 'odom', odomCallback, qos)
+
             print("test")
             while True:
                 rclpy.spin_once(node, timeout_sec=0.1)  # Allow the callback to be processed
@@ -129,6 +130,6 @@ def main():
             writer = csv.writer(csvfile)
             writer.writerow(['Angle', 'Time', 'Angular Velocity'])
             writer.writerows(data)
-
+    
 if __name__ == '__main__':
     main()
